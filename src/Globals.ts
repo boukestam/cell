@@ -1,5 +1,5 @@
-import { data } from "./Data";
-import { GeneLocation } from "./Gene";
+import { data } from "./data/Data";
+import { GeneLocation } from "./data/Gene";
 
 export const AOEtoJ2 = new Map();
 export const J2toAOE = new Map();

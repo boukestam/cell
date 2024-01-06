@@ -1,6 +1,6 @@
 import { ParsedGenbank } from "genbank-parser";
 import { CME } from "./CME";
-import { Avognum, cellVolume } from "./Globals";
+import { Avognum, cellVolume } from "../Globals";
 
 export function initReplication(sim: CME) {
   const k_high = 7800 * 1000 / Avognum / cellVolume;

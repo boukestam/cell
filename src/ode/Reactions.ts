@@ -1,12 +1,14 @@
-import { Avognum } from "./Globals";
+import { Avognum } from "../Globals";
 
 export function calcCellVolume(pmap: Map<string, number>): number {
   const surfaceArea = pmap.get('CellSA');
   const cellRadius = Math.sqrt(surfaceArea / (4 * Math.PI)) * 1e-9;
   const cellVolume = (4 / 3) * Math.PI * Math.pow(cellRadius, 3) * 1000;
   if (cellVolume > 6.70e-17) {
+    pmap.set("CellV", 670);
     return 6.70e-17;
   } else {
+    pmap.set("CellV", Math.round(cellVolume * 1e19));
     return cellVolume;
   }
 }

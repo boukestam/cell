@@ -1,10 +1,10 @@
 // Create Definitions to Add RNA, Proteins, and Reactions to the Simulation
 
 import { CME } from "./CME";
-import { data, getProteinCount, getRNASequences, getSequences } from "./Data";
-import { Gene } from "./Gene";
-import { ModelSpecies, genomePtnLocDict, genomeRnaLocDict } from "./Globals";
-import { poisson } from "./Poisson";
+import { data, getProteinCount, getRNASequences, getSequences } from "../data/Data";
+import { Gene } from "../data/Gene";
+import { ModelSpecies, genomePtnLocDict, genomeRnaLocDict } from "../Globals";
+import { poisson } from "../Poisson";
 import { aaCostMap, aaTRNAMap, ctRNAcostMap } from "./RNAMaps";
 import { transcriptRate, degradationRate, translateRate, riboTranscriptRate, trnaTranscriptRate } from "./Rates";
 
@@ -181,10 +181,14 @@ function addMetabolite(sim: CME, newMetID: string, proteinCount: number, transcr
 
   sim.defineSpecies([geneMetID, rnaMetID, newMetID]);
 
-  const row = data.mRNA_counts_DF.findRow("LocusTag", jcvi3AID);
-  let avg_mRNA_cnt = row[2];
-  if (avg_mRNA_cnt === 0) avg_mRNA_cnt = 0.001;
-  const init_mRNA_count = poisson(avg_mRNA_cnt);
+  const rows = data.mRNA_counts_DF.filter(row => row["LocusTag"] === jcvi3AID);
+  let init_mRNA_count = 0;
+
+  for (const row of rows.getRows()) {
+    let avg_mRNA_cnt = row["Count"];
+    if (avg_mRNA_cnt === 0) avg_mRNA_cnt = 0.001;
+    init_mRNA_count = poisson(avg_mRNA_cnt);
+  }
 
   sim.addParticles(geneMetID, 1);
   sim.addParticles(newMetID, proteinCount);

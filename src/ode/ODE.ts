@@ -1,14 +1,12 @@
-import * as math from "mathjs";
-import { Datasheet } from "./Datasheet";
-
-// expression + '_' + metaboliteId => derivative
-const derivativeCache = new Map<string, math.MathNode>();
+import { Datasheet } from "../data/Datasheet";
 
 export class ODERateForm {
+  id: string;
   template: string;
   keySet: Set<string>;
 
-  constructor(template: string = "$Vmax * $Sub1 /($Km + $Sub1)") {
+  constructor(id: string, template: string) {
+    this.id = id;
     this.template = template;
 
     this.keySet = new Set<string>();
@@ -40,6 +38,7 @@ export class ODEReaction {
   stochiometry: Map<string, number>;
 
   rateForm: ODERateForm;
+  compiledRateForm: string;
 
   constructor(id: string, name: string) {
     this.id = id;
@@ -139,7 +138,7 @@ export class ODE {
   }
 
   addRateForm(id: string, template: string) {
-    const rateForm = new ODERateForm(template);
+    const rateForm = new ODERateForm(id, template);
     this.rateForms.set(id, rateForm);
   }
 
@@ -188,6 +187,10 @@ export class ODE {
   addMetabolite(id: string, name: string, initialValue: number) {
     const metabolite = new ODEMetabolite(id, name, initialValue);
     this.metabolites.set(id, metabolite);
+
+    if (id === "M_glyc_c") {
+      console.warn("Setting glycogen to " + initialValue);
+    }
   }
 
   addParameter(reactionId: string, formKey: string, value: ODEParameterValue, lowerBound: number = 0, upperBound: number = 0, unit: string = "", name: string = "") {
@@ -252,10 +255,8 @@ export class ODE {
 
     const parseValue = (value: ODEParameterValue): ODEParameterValue => {
       if (typeof value === "string") {
-        if (this.metabolites.has(value)) {
+        if (this.metabolites.has(value) || this.explicitParameters.has(value)) {
           return value;
-        } else if (this.explicitParameters.has(value)) {
-          return this.explicitParameters.get(value).value as number;
         } else {
           throw new Error(`Parameter not found in reaction ${value}`);
         }
@@ -264,9 +265,9 @@ export class ODE {
       return value;
     };
 
-    const metaboliteDerivatives = new Map<string, string[]>();
+    const metaboliteReactions = new Map<string, ODEReaction[]>();
     for (const metabolite of this.metabolites.values()) {
-      metaboliteDerivatives.set(metabolite.id, []);
+      metaboliteReactions.set(metabolite.id, []);
     }
 
     // Check that all reaction parameters are defined
@@ -303,81 +304,41 @@ export class ODE {
         throw new Error(`Parameter ${parameter} not found in reaction ${reaction.id}`);
       }
 
-      const REPLACE_STRING = "xzx";
-      const compiled = reaction.rateForm.compile(values).replaceAll("_", REPLACE_STRING);
-
-      const root = math.parse(compiled);
-
-      let xi = 0;
-      const xToReal = new Map<string, string | number>();
-      const realToX = new Map<string | number, string>();
-
-      const mapToX = (node: math.MathNode): math.MathNode => {
-        if (node.type === "ConstantNode" || node.type === "SymbolNode") {
-          if (node.type === "SymbolNode" && realToX.has((node as math.SymbolNode).name)) {
-            return new math.SymbolNode(realToX.get((node as math.SymbolNode).name));
-          }
-
-          const xName = "x" + (xi++);
-
-          if (node.type === "ConstantNode") {
-            xToReal.set(xName, (node as math.ConstantNode).value);
-          }
-
-          if (node.type === "SymbolNode") {
-            xToReal.set(xName, (node as math.SymbolNode).name);
-            realToX.set((node as math.SymbolNode).name, xName);
-          }
-
-          return new math.SymbolNode(xName);
-        } else {
-          return node;
-        }
-      };
-
-      const mapToReal = (node: math.MathNode): math.MathNode => {
-        if (node.type === "SymbolNode") {
-          const name = (node as math.SymbolNode).name;
-          if (!xToReal.has(name)) throw new Error(`Symbol ${name} not found in xToReal`);
-
-          const value = xToReal.get(name);
-          if (typeof value === "number") {
-            return new math.ConstantNode(value);
-          } else {
-            return new math.SymbolNode(value);
-          }
-        } else {
-          return node;
-        }
-      };
-
-      const xRoot = root.transform(mapToX);
-
-      const getDerivative = (metaboliteId: string): math.MathNode => {
-        const replacedMetaboliteId = metaboliteId.replaceAll("_", REPLACE_STRING);
-
-        if (!realToX.has(replacedMetaboliteId)) {
-          return xRoot;
-        }
-
-        const xRootString = xRoot.toString();
-        const xName = realToX.get(replacedMetaboliteId);
-        const key = xRootString + "_" + xName;
-
-        if (derivativeCache.has(key)) return derivativeCache.get(key);
-
-        const derivative = math.derivative(xRoot, xName);
-        derivativeCache.set(key, derivative);
-
-        return derivative;
-      };
+      reaction.compiledRateForm = reaction.rateForm.compile(values);
 
       for (const metabolite of [...reaction.substrates.values(), ...reaction.products.values()]) {
-        const d = getDerivative(metabolite).transform(mapToReal).toString().replaceAll(REPLACE_STRING, "_");
-        metaboliteDerivatives.get(metabolite).push(`${reaction.getStoichiometry(metabolite)} * (${d})`);
+        metaboliteReactions.get(metabolite).push(reaction);
       }
     }
 
-    return metaboliteDerivatives;
+    return metaboliteReactions;
+  }
+
+  toString() {
+    // Write the metabolites and initial values
+    let output = "# Metabolites\n";
+    for (const metabolite of this.metabolites.values()) {
+      output += `metabolite ${metabolite.id}: ${metabolite.initialValue}\n`;
+    }
+
+    // Write the reactions
+    output += "# Reactions\n";
+    for (const reaction of this.reactions.values()) {
+      output += `${reaction.id}, ${reaction.rateForm.id}, ${[...reaction.substrates.values()].join(" + ")} -> ${[...reaction.products.values()].join(" + ")}\n`;
+    }
+
+    // Write the explicit parameters
+    output += "# Explicit Parameters\n";
+    for (const parameter of this.explicitParameters.values()) {
+      output += `parameter ${parameter.name}: ${parameter.value}\n`;
+    }
+
+    // Write the rate forms
+    output += "# Rate Forms\n";
+    for (const rateForm of this.rateForms.values()) {
+      output += `rate form ${rateForm.template}\n`;
+    }
+
+    return output;
   }
 }

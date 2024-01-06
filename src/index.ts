@@ -1,15 +1,15 @@
-import { CME } from "./CME";
-import { loadData } from "./Data";
+import { CME } from "./cme/CME";
+import { loadData } from "./data/Data";
 import { ModelSpecies, initDicts } from "./Globals";
-import { initIC } from "./IC";
-import { lipidPatch } from "./LipidPatch";
-import { addReactionsToModel, defineMetabolicReactions } from "./MetabolicReactions";
-import { ODE } from "./ODE";
-import { pppPatch } from "./PppPatch";
-import { populate } from "./Populate";
-import { addReplication, initReplication } from "./Replication";
-import { integrate } from "./Integrator";
-import { writeODEtoCME } from "./ODEtoCME";
+import { initIC } from "./cme/IC";
+import { lipidPatch } from "./ode/LipidPatch";
+import { addReactionsToModel, defineMetabolicReactions } from "./ode/MetabolicReactions";
+import { ODE } from "./ode/ODE";
+import { pppPatch } from "./ode/PppPatch";
+import { populate } from "./cme/Populate";
+import { addReplication, initReplication } from "./cme/Replication";
+import { integrate } from "./ode/Integrator";
+import { writeODEtoCME } from "./ode/ODEtoCME";
 
 // Create our simulation object
 const sim = new CME();
@@ -34,6 +34,10 @@ loadData().then((data) => {
   console.log("Running simulation");
   const startTime = Date.now();
 
+  console.log("ATP", sim.species.get("M_atp_c"));
+
+  console.log([...sim.species.keys()].map(k => `${k}: ${Math.floor(sim.species.get(k))}`).join("\n"));
+
   sim.solve(10, 1, (time) => {
     console.log("ATP", sim.species.get("M_atp_c"));
 
@@ -48,18 +52,10 @@ loadData().then((data) => {
     lipidPatch(model, sim.species);
     pppPatch(model);
 
-    const buildStart = Date.now();
-    const derivatives = model.build();
-
-    const values = new Map<string, number>();
-    for (const metabolite of model.metabolites.keys()) {
-      values.set(metabolite, model.metabolites.get(metabolite).initialValue);
-    }
-
-    console.log("Built ODE in", Date.now() - buildStart, "ms", model, derivatives, values);
+    console.log("ODE model", model);
 
     const integrateStart = Date.now();
-    const newValues = integrate(values, derivatives, 1, 0.001, "euler");
+    const newValues = integrate(model, 1, 0.1, "lsoda");
     console.log("Integrated ODE in", Date.now() - integrateStart, "ms");
 
     writeODEtoCME(sim.species, newValues);

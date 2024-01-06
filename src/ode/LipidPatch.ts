@@ -1,5 +1,6 @@
-import { volToSA } from "./Globals";
+import { volToSA } from "../Globals";
 import { ODE } from "./ODE";
+import { partTomM } from "./Reactions";
 
 function addLipidParams(model: ODE) {
   // ACPPAT: Raise forward kcat, Raise substrate km to literature values
@@ -53,7 +54,12 @@ function addTransportParams(model: ODE, pmap: Map<string, number>) {
   model.addRateForm("FAFBA", FAFBA());
   model.addRateForm("COAabcR", COAabcR());
 
-  const Enz_COAabc = Math.min(pmap.get("M_PTN_JCVISYN3A_0641_c"), pmap.get("M_PTN_JCVISYN3A_0642_c"), pmap.get("M_PTN_JCVISYN3A_0643_c"), pmap.get("M_PTN_JCVISYN3A_0836_c")); // But this has to be all COAabc genes (See M. Melo)
+  const Enz_COAabc = partTomM(Math.min(
+    pmap.get("M_PTN_JCVISYN3A_0641_c"),
+    pmap.get("M_PTN_JCVISYN3A_0642_c"),
+    pmap.get("M_PTN_JCVISYN3A_0643_c"),
+    pmap.get("M_PTN_JCVISYN3A_0836_c")
+  ), pmap); // But this has to be all COAabc genes (See M. Melo)
 
   const Kcat_R_COAabc = 2.0; // 1/s, Santos et al (2018), CbrT params
   const Km_R_COAabc = 2.1e-6; // mM, Santos et al (2018), CbrT params
@@ -72,16 +78,16 @@ function addTransportParams(model: ODE, pmap: Map<string, number>) {
   model.addParameter("COAabc", "Enzyme", Enz_COAabc);
 
   // Add Sphingomyelin uptake
-  model.addMetabolite("M_sm_c", "Sphingomyelin", 0);
-  const Kcat_FBA_SM = 1.1e-3 * (volToSA / 2.0) * 1.25; //*volToSA#/VolToSA # mM/s, Uptake flux from lipidomics adjusted FBA
+  model.addMetabolite("M_sm_c", "Sphingomyelin", partTomM(pmap.get("M_sm_c"), pmap));
+  const Kcat_FBA_SM = 1.1e-3 * (volToSA / 2.0); //*volToSA#/VolToSA # mM/s, Uptake flux from lipidomics adjusted FBA
 
   model.addReaction("SMuptake", "FAFBA", "Sphingomyelin Uptake");
   model.addProduct("SMuptake", "Prod1", "M_sm_c");
   model.addParameter("SMuptake", "Kcat_R", Kcat_FBA_SM);
 
   // Add Phosphatidlycholine uptake to the model
-  model.addMetabolite("M_pc_c", "Phosphatidylcholine", 0);
-  const Kcat_FBA_PC = 1.42e-4 * (volToSA / 2.0) * 1.25; //*volToSA#/VolToSA # mM/s, Uptake flux from lipidomics adjusted FBA
+  model.addMetabolite("M_pc_c", "Phosphatidylcholine", partTomM(pmap.get("M_pc_c"), pmap));
+  const Kcat_FBA_PC = 1.42e-4 * (volToSA / 2.0); //*volToSA#/VolToSA # mM/s, Uptake flux from lipidomics adjusted FBA
   model.addReaction("PCuptake", "FAFBA", "Phosphatidylcholine Uptake");
   model.addProduct("PCuptake", "Prod1", "M_pc_c");
   model.addProduct("PCuptake", "Prod2", "M_adp_c");
@@ -90,8 +96,8 @@ function addTransportParams(model: ODE, pmap: Map<string, number>) {
   model.addParameter("PCuptake", "Kcat_R", Kcat_FBA_PC);
 
   // Add Triacylglycerol uptake
-  model.addMetabolite("M_tag_c", "triacylglycerol", 0);
-  const Kcat_FBA_TAG = 0.0003095 * (volToSA / 2.0) * 1.25; //*volToSA # mM/s, Uptake Flux Triacylglycerol from FBA
+  model.addMetabolite("M_tag_c", "triacylglycerol", partTomM(pmap.get("M_tag_c"), pmap));
+  const Kcat_FBA_TAG = 0.0003095 * (volToSA / 2.0); //*volToSA # mM/s, Uptake Flux Triacylglycerol from FBA
 
   model.addReaction("TAGt", "FAFBA", "TAG uptake");
   model.addProduct("TAGt", "Prod1", "M_tag_c");

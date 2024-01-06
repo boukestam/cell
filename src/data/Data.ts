@@ -2,7 +2,7 @@
 
 import { ParsedGenbank } from "genbank-parser";
 import { Datasheet } from "./Datasheet";
-import { J2toAOE, defaultPtnCount, genomePtnLocDict, genomeRnaLocDict } from "./Globals";
+import { J2toAOE, defaultPtnCount, genomePtnLocDict, genomeRnaLocDict } from "../Globals";
 import { loadExcel, loadGenbank, loadCSV, loadTSV, TSV, loadSBML } from "./Loader";
 import { SBML } from "./SBML";
 

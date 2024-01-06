@@ -86,10 +86,10 @@ export class CME {
     let lastHookTime = 0;
 
     while (time < totalTime) {
-      const result = this.solveStep(time);
-      time = result.time;
+      //const result = this.solveStep(time);
+      time += 1;
 
-      if (time - lastHookTime > hookInterval) {
+      if (time - lastHookTime >= hookInterval) {
         hook(time);
         lastHookTime = time;
       }
@@ -135,5 +135,24 @@ export class CME {
     }
 
     return { time, reactants, products };
+  }
+
+  toString() {
+    // Write the header
+    let output = "# CME Simulation File\n";
+
+    // Write the species and counts
+    output += "# Species\n";
+    for (const [species, count] of this.species.entries()) {
+      output += `species ${species}: ${count}\n`;
+    }
+
+    // Write the reactions
+    output += "# Reactions\n";
+    for (const reaction of this.reactions) {
+      output += `reaction ${reaction.reactants.join(" + ")} -> ${reaction.products.join(" + ")}: ${reaction.rate}\n`;
+    }
+
+    return output;
   }
 }

@@ -2,7 +2,8 @@
   "compilerOptions": {
     "target": "ES2022",
     "types": [
-      "@webgpu/types"
+      "@webgpu/types",
+      "@types/emscripten"
     ],
     "module": "ESNext",
     "moduleResolution": "node"

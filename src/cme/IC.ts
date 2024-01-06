@@ -1,6 +1,6 @@
 import { CME } from "./CME";
-import { data } from "./Data";
-import { Avognum, cellVolume } from "./Globals";
+import { data } from "../data/Data";
+import { Avognum, cellVolume } from "../Globals";
 
 function mMtoPart(mM: number) {
   return (mM / 1000) * Avognum * cellVolume;

@@ -1,8 +1,8 @@
-import { data } from "./Data";
-import { Datasheet } from "./Datasheet";
+import { data } from "../data/Data";
+import { Datasheet } from "../data/Datasheet";
 import { ODE, ODEParameterValue } from "./ODE";
 import { enzymatic, partTomM } from "./Reactions";
-import { SBMLModel } from "./SBML";
+import { SBMLModel } from "../data/SBML";
 
 // Default metabolite concentration (mM)
 const defaultMetConcentration = 0.1;
@@ -276,7 +276,7 @@ export function defineMetabolicReactions() {
 
   let concDF = new Datasheet(concentrationList, ["Metabolite", "InitialConcentration"]);
 
-  const { KcatDF: NucKcatDF, KmDF: NucKmDF } = getKcat(nuclMetRxnID, QntDF, ParDF, QntDF_Nuclt, RxnDF);
+  const { KcatDF: NucKcatDF, KmDF: NucKmDF } = getKcat(nuclMetRxnID, QntDF_nuc, ParDF_nuc, QntDF_Nuclt, RxnDF);
 
   let KmDF = CentKmDF.concat(NucKmDF);
 
@@ -339,7 +339,7 @@ export function defineMetabolicReactions() {
 
   concDF = new Datasheet(concentrationList, ["Metabolite", "InitialConcentration"]);
 
-  const { KcatDF: LipKcatDF, KmDF: LipKmDF } = getKcat(lipMetRxnID, QntDF, ParDF, QntDF_Lipid, RxnDF);
+  const { KcatDF: LipKcatDF, KmDF: LipKmDF } = getKcat(lipMetRxnID, QntDF_lip, ParDF_lip, QntDF_Lipid, RxnDF);
 
   RxnDF = data.ComDF_cent.get("Reaction");
   ParDF = data.ComDF_cent.get("Parameter");
@@ -389,7 +389,7 @@ export function defineMetabolicReactions() {
 
   // Concatonate the Central and transport reaction dataframes.
 
-  RxnDF = RxnDF_CentralMet.concat(RxnDF_Nuclt, RxnDF_Lipid, RxnDF_aaMet, RxnDF_cofactMet, RxnDF_Transport);
+  RxnDF = RxnDF_CentralMet.concat(RxnDF_Nuclt, RxnDF_Lipid, RxnDF_aaMet, RxnDF_Transport, RxnDF_cofactMet);
 
   // Read quantities in from the quantities dataframe.
   for (let items of QntDF.getRows()) {
@@ -794,7 +794,7 @@ export function addReactionsToModel(model: ODE, pmap: Map<string, number>, data:
 
       model.addRateForm(RateName, rateLaw);
 
-      model.addReaction(rxnID, RateName, rxnName);
+      model.addReaction(rxnID, RateName, "Reaction " + rxnID);
 
       for (let spc of Object.keys(reactantsDict)) {
         if (model.metabolites.has(spc)) {

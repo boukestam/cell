@@ -1,8 +1,8 @@
 // Define how to calculate transcription rate constants as in equation 3 for transcription reactions.
 // Uses mature transcript length and proteomics for promoter strength.
 
-import { getProteinCount } from "./Data";
-import { rnaPolKcat, baseMap, rnaPolKd, ATPconc, CTPconc, UTPconc, GTPconc, rnaPolK0, RnaPconc, riboKcat, trnaPolKcat, rrnaPolKcat, CytoVolume, riboKd, riboK0, ribosomeConc } from "./Globals";
+import { getProteinCount } from "../data/Data";
+import { rnaPolKcat, baseMap, rnaPolKd, ATPconc, CTPconc, UTPconc, GTPconc, rnaPolK0, RnaPconc, riboKcat, trnaPolKcat, rrnaPolKcat, CytoVolume, riboKd, riboK0, ribosomeConc } from "../Globals";
 import { aaMap, aaTRNAMap } from "./RNAMaps";
 
 function checkBases(sequence: string, baseMap: Map<string, any>) {
