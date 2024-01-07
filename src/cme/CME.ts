@@ -69,7 +69,6 @@ export class CME {
 
     if (count === undefined) {
       throw new Error(`Species ${species} does not exist`);
-      count = 0;
     }
 
     this.species.set(species, count + amount);
@@ -86,8 +85,8 @@ export class CME {
     let lastHookTime = 0;
 
     while (time < totalTime) {
-      //const result = this.solveStep(time);
-      time += 1;
+      const result = this.solveStep(time);
+      time = result.time;
 
       if (time - lastHookTime >= hookInterval) {
         hook(time);

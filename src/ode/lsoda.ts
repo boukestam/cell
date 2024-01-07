@@ -6,10 +6,9 @@ declare global {
   }
 }
 
-export function lsoda(
+function lsodaCall(
   y: Map<string, number>,
   fn: DerivativeFunction,
-  totalTime: number,
   h: number,
   hook: (time: number, d: Map<string, number>) => void
 ): Map<string, number> {
@@ -25,13 +24,11 @@ export function lsoda(
     yArray[i] = yValues[i];
   }
 
-  console.log("YARRAY", yArray);
-
   const derivePointer = addFunction((t, yPointer, ydotPointer, voidPointer) => {
-    const ydot = Module.HEAPF64.subarray(ydotPointer / 8, ydotPointer / 8 + y.size);
+    // For some reason ydot pointer is offset by 4 bytes, so we need to handle this manually
+    const ydot = new Float64Array(y.size);
 
     // Update y map
-    const yArray = Module.HEAPF64.subarray(yPointer / 8, yPointer / 8 + y.size);
     for (let i = 0; i < y.size; i++) {
       y.set(yKeys[i], yArray[i]);
     }
@@ -41,6 +38,9 @@ export function lsoda(
     for (let i = 0; i < y.size; i++) {
       ydot[i] = derivatives.get(yKeys[i]);
     }
+
+    // Write ydot to memory
+    Module.HEAPU8.set(new Uint8Array(ydot.buffer), ydotPointer);
 
     hook(t, derivatives);
 
@@ -56,7 +56,7 @@ export function lsoda(
     "number"  // double time
   ]);
 
-  const status = lsoda(derivePointer, yPointer, y.size, 1e-12, 1e-6, 0.1);
+  const status = lsoda(derivePointer, yPointer, y.size, 1e-12, 1e-6, h);
 
   if (status <= 0) {
     throw new Error(`LSODA failed with status ${status}`);
@@ -65,8 +65,28 @@ export function lsoda(
   const result = new Map<string, number>();
 
   for (let i = 0; i < y.size; i++) {
-    result.set(y.keys()[i], yArray[i]);
+    result.set(yKeys[i], yArray[i]);
   }
 
+  removeFunction(derivePointer);
+
+  Module._free(yPointer);
+
   return result;
+}
+
+export function lsoda(
+  y: Map<string, number>,
+  fn: DerivativeFunction,
+  totalTime: number,
+  h: number,
+  hook: (time: number, d: Map<string, number>) => void
+): Map<string, number> {
+  const steps = Math.round(totalTime / h);
+
+  for (let i = 0; i < steps; i++) {
+    y = lsodaCall(y, fn, h, hook);
+  }
+
+  return y;
 }

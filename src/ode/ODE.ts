@@ -187,10 +187,6 @@ export class ODE {
   addMetabolite(id: string, name: string, initialValue: number) {
     const metabolite = new ODEMetabolite(id, name, initialValue);
     this.metabolites.set(id, metabolite);
-
-    if (id === "M_glyc_c") {
-      console.warn("Setting glycogen to " + initialValue);
-    }
   }
 
   addParameter(reactionId: string, formKey: string, value: ODEParameterValue, lowerBound: number = 0, upperBound: number = 0, unit: string = "", name: string = "") {
