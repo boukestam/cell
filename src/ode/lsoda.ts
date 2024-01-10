@@ -10,7 +10,7 @@ function lsodaCall(
   y: Map<string, number>,
   fn: DerivativeFunction,
   h: number,
-  hook: (time: number, d: Map<string, number>) => void
+  steps: number
 ): Map<string, number> {
   const Module: EmscriptenModule = window.Module;
   if (!Module['calledRun']) throw new Error('Module not initialized');
@@ -28,21 +28,10 @@ function lsodaCall(
     // For some reason ydot pointer is offset by 4 bytes, so we need to handle this manually
     const ydot = new Float64Array(y.size);
 
-    // Update y map
-    for (let i = 0; i < y.size; i++) {
-      y.set(yKeys[i], yArray[i]);
-    }
-
-    const derivatives = fn(y);
-
-    for (let i = 0; i < y.size; i++) {
-      ydot[i] = derivatives.get(yKeys[i]);
-    }
+    fn(yArray, ydot);
 
     // Write ydot to memory
     Module.HEAPU8.set(new Uint8Array(ydot.buffer), ydotPointer);
-
-    hook(t, derivatives);
 
     return 0;
   }, "idiii");
@@ -53,10 +42,11 @@ function lsodaCall(
     "number", // int neq
     "number", // double atol
     "number", // double rtol
-    "number"  // double time
+    "number",  // double h (timestep)
+    "number", // int steps
   ]);
 
-  const status = lsoda(derivePointer, yPointer, y.size, 1e-12, 1e-6, h);
+  const status = lsoda(derivePointer, yPointer, y.size, 1e-12, 1e-6, h, steps);
 
   if (status <= 0) {
     throw new Error(`LSODA failed with status ${status}`);
@@ -79,14 +69,11 @@ export function lsoda(
   y: Map<string, number>,
   fn: DerivativeFunction,
   totalTime: number,
-  h: number,
-  hook: (time: number, d: Map<string, number>) => void
+  h: number
 ): Map<string, number> {
   const steps = Math.round(totalTime / h);
 
-  for (let i = 0; i < steps; i++) {
-    y = lsodaCall(y, fn, h, hook);
-  }
+  y = lsodaCall(y, fn, h, steps);
 
   return y;
 }

@@ -10,11 +10,21 @@ import { populate } from "./cme/Populate";
 import { addReplication, initReplication } from "./cme/Replication";
 import { integrate } from "./ode/Integrator";
 import { writeODEtoCME } from "./ode/ODEtoCME";
+import { initUI, updateUI } from "./ui";
+import { mMtoPart } from "./ode/Reactions";
 
 // Create our simulation object
 const sim = new CME();
 
-loadData().then((data) => {
+async function sleep(ms: number) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+async function run() {
+  initUI();
+
+  const data = await loadData();
+
   console.log("Loaded", data);
 
   initDicts();
@@ -31,31 +41,38 @@ loadData().then((data) => {
 
   // Run simulation
 
-  console.log("Running simulation");
+  console.log("Running simulation", sim);
   const startTime = Date.now();
 
-  console.log("ATP", sim.species.get("M_atp_c"));
+  let i = 0;
 
-  sim.solve(10, 1, (time) => {
-    console.log(time, "ATP", sim.species.get("M_atp_c"));
+  await sim.solve(240 * 60, 1, async (time) => {
+    const uiData = new Map(sim.species);
 
     const model = new ODE();
-
     model.addRateForm("zeroOrderOnOff", "$onoff * $K");
 
     addReactionsToModel(model, sim.species, metabolicData);
-
     lipidPatch(model, sim.species);
     pppPatch(model);
 
-    const integrateStart = Date.now();
     const newValues = integrate(model, 1, 0.1, "lsoda");
-    console.log("Integrated ODE in", Date.now() - integrateStart, "ms");
+
+    for (const [key, value] of newValues.entries()) {
+      if (!uiData.has(key)) continue;
+      uiData.set("ODE_" + key, mMtoPart(value, sim.species) - uiData.get(key));
+    }
 
     writeODEtoCME(sim.species, newValues);
+
+    if ((i++) > 0) {
+      if (updateUI(time / 60, uiData)) await sleep(0);
+    }
   });
 
   console.log("Finished simulation");
   const endTime = Date.now();
   console.log("Simulation took", endTime - startTime, "ms");
-});
+}
+
+run().catch(console.error);

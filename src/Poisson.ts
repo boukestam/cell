@@ -9,5 +9,5 @@ export function poisson(lam: number = 1.0) {
     p *= Math.random();
   }
 
-  return k - 1;
+  return Math.round(k - 1);
 }

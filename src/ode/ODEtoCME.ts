@@ -152,18 +152,21 @@ export function writeODEtoCME(pmap: Map<string, number>, res: Map<string, number
 
   const avgProtSA = 28.0; // nm^2, average protein surface area to produce expected 54% coverage for 9.6K membrane proteins
 
+  // Add code that was used to do this parsing, recalculate Area/protein, remove non-needed ATPase subunits: delta, a, b
+  const memProtList = ['JCVISYN3A_0005', 'JCVISYN3A_0008', 'JCVISYN3A_0009', 'JCVISYN3A_0010', 'JCVISYN3A_0011', 'JCVISYN3A_0030', 'JCVISYN3A_0034', 'JCVISYN3A_0060', 'JCVISYN3A_0095', 'JCVISYN3A_0113', 'JCVISYN3A_0114', 'JCVISYN3A_0116', 'JCVISYN3A_0117', 'JCVISYN3A_0132', 'JCVISYN3A_0143', 'JCVISYN3A_0146', 'JCVISYN3A_0164', 'JCVISYN3A_0165', 'JCVISYN3A_0166', 'JCVISYN3A_0167', 'JCVISYN3A_0168', 'JCVISYN3A_0169', 'JCVISYN3A_0195', 'JCVISYN3A_0196', 'JCVISYN3A_0197', 'JCVISYN3A_0235', 'JCVISYN3A_0239', 'JCVISYN3A_0248', 'JCVISYN3A_0249', 'JCVISYN3A_0296', 'JCVISYN3A_0304', 'JCVISYN3A_0314', 'JCVISYN3A_0317', 'JCVISYN3A_0326', 'JCVISYN3A_0332', 'JCVISYN3A_0338', 'JCVISYN3A_0345', 'JCVISYN3A_0346', 'JCVISYN3A_0371', 'JCVISYN3A_0372', 'JCVISYN3A_0379', 'JCVISYN3A_0388', 'JCVISYN3A_0398', 'JCVISYN3A_0399', 'JCVISYN3A_0411', 'JCVISYN3A_0425', 'JCVISYN3A_0426', 'JCVISYN3A_0427', 'JCVISYN3A_0428', 'JCVISYN3A_0439', 'JCVISYN3A_0440', 'JCVISYN3A_0478', 'JCVISYN3A_0481', 'JCVISYN3A_0505', 'JCVISYN3A_0516', 'JCVISYN3A_0601', 'JCVISYN3A_0639', 'JCVISYN3A_0641', 'JCVISYN3A_0642', 'JCVISYN3A_0643', 'JCVISYN3A_0652', 'JCVISYN3A_0685', 'JCVISYN3A_0686', 'JCVISYN3A_0691', 'JCVISYN3A_0696', 'JCVISYN3A_0706', 'JCVISYN3A_0707', 'JCVISYN3A_0708', 'JCVISYN3A_0774', 'JCVISYN3A_0777', 'JCVISYN3A_0778', 'JCVISYN3A_0779', 'JCVISYN3A_0787', 'JCVISYN3A_0789', 'JCVISYN3A_0790', 'JCVISYN3A_0791', 'JCVISYN3A_0792', 'JCVISYN3A_0795', 'JCVISYN3A_0797', 'JCVISYN3A_0822', 'JCVISYN3A_0827', 'JCVISYN3A_0830', 'JCVISYN3A_0835', 'JCVISYN3A_0836', 'JCVISYN3A_0839', 'JCVISYN3A_0852', 'JCVISYN3A_0870', 'JCVISYN3A_0872', 'JCVISYN3A_0876', 'JCVISYN3A_0878', 'JCVISYN3A_0879', 'JCVISYN3A_0881', 'JCVISYN3A_0908'] // _0793, _0794, _0796 = ATPase not in transmembrane
+
   // Proteins with special naming conventions in the model
   const otherNamesDict = { 'JCVISYN3A_0779': ['ptsg', 'ptsg_P'] };
 
   let count = 0; // Count of number of membrane proteins
-  for (const elementID of Object.keys(pmap)) {
-    if (elementID.includes('M_PTN_')) {
-      count += pmap.get(elementID);
-    } else if (elementID in Object.keys(otherNamesDict)) {
+  for (const elementID of memProtList) {
+    if (elementID in otherNamesDict) {
       const elementIDList = otherNamesDict[elementID];
       for (const obj of elementIDList) {
         count += pmap.get(obj);
       }
+    } else {
+      count += pmap.get('M_PTN_' + elementID + '_c');
     }
   }
 

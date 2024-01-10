@@ -12,6 +12,15 @@ export const genesInModel = new Set<string>();
 
 let unkIter = 1;
 
+function getJCVI2ID(mmcode: string) {
+  // Checks if a translation to JCVISYN2* code is available
+  return data.annotatPD.findRow(5, mmcode)?.[13]?.trim() || (
+    data.manGPRPD.getColumn("MM").includes(mmcode) ?
+      ("JCVIman_" + mmcode) :
+      ("JCVIunk_" + mmcode + "_" + (++unkIter))
+  );
+}
+
 function addRNACost(
   sim: CME,
   geneMetID: string, rnaMetID: string, ptnMetID: string, jcvi2ID: string,
@@ -119,48 +128,6 @@ function addRNACost(
   sim.addReaction([rnaMetID], TranslatProd, translateRate(rnaMetID, ptnMetID, rnasequence.sequence, aasequence.sequence, sim.species));
 }
 
-function getJCVI2ID(mmcode: string) {
-  // Checks if a translation to JCVISYN2* code is available
-  return data.annotatPD.findRow(5, mmcode)?.[13]?.trim() || (
-    data.manGPRPD.getColumn("MM").includes(mmcode) ?
-      ("JCVIman_" + mmcode) :
-      ("JCVIunk_" + mmcode + "_" + (++unkIter))
-  );
-}
-
-function addProtein(sim: CME, jcvi3AID: string) {
-  const locusNum = jcvi3AID.split('_')[1];
-  const mmcode = 'MMSYN1_' + locusNum;
-
-  const jcvi2ID = getJCVI2ID(mmcode);
-
-  genesInModel.add(jcvi3AID);
-
-  const ptnMetID = 'M_PTN_' + jcvi3AID + '_c';
-  ModelSpecies.add(ptnMetID);
-
-  const { proteinCount } = getProteinCount(ptnMetID, jcvi2ID);
-
-  const geneMetID = jcvi3AID + '_gene';
-  ModelSpecies.add(geneMetID);
-
-  // Get nucleotide and amino acid sequences, if available
-  const { rnasequence, aasequence } = getSequences(jcvi3AID);
-
-  if (!rnasequence || !aasequence) return;
-
-  const rnaMetID = "M_RNA_" + jcvi3AID + "_c";
-  ModelSpecies.add(rnaMetID);
-
-  sim.defineSpecies([geneMetID, rnaMetID, ptnMetID]);
-
-  sim.addParticles(geneMetID, 1);
-  sim.addParticles(ptnMetID, Math.max(1, proteinCount));
-  sim.addParticles(rnaMetID, 1);
-
-  addRNACost(sim, geneMetID, rnaMetID, ptnMetID, jcvi2ID, rnasequence, aasequence);
-}
-
 function addMetabolite(sim: CME, newMetID: string, proteinCount: number, transcribe: boolean, jcvi3AID: string) {
   if (!transcribe) {
     sim.defineSpecies([newMetID]);
@@ -195,6 +162,28 @@ function addMetabolite(sim: CME, newMetID: string, proteinCount: number, transcr
   sim.addParticles(rnaMetID, init_mRNA_count);
 
   return { geneMetID, rnaMetID, rnasequence, aasequence };
+}
+
+function addProtein(sim: CME, jcvi3AID: string) {
+  const locusNum = jcvi3AID.split('_')[1];
+  const mmcode = 'MMSYN1_' + locusNum;
+
+  const jcvi2ID = getJCVI2ID(mmcode);
+
+  genesInModel.add(jcvi3AID);
+
+  const ptnMetID = 'M_PTN_' + jcvi3AID + '_c';
+  ModelSpecies.add(ptnMetID);
+
+  const { proteinCount } = getProteinCount(ptnMetID, jcvi2ID);
+
+  const metaboliteResult = addMetabolite(
+    sim, ptnMetID, proteinCount, true, jcvi3AID
+  );
+  if (!metaboliteResult) return;
+
+  const { geneMetID, rnaMetID, rnasequence, aasequence } = metaboliteResult;
+  addRNACost(sim, geneMetID, rnaMetID, ptnMetID, jcvi2ID, rnasequence, aasequence);
 }
 
 function addNamedProtein(
