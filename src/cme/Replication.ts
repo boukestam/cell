@@ -1,6 +1,6 @@
 import { ParsedGenbank } from "genbank-parser";
 import { CME } from "./CME";
-import { Avognum, cellVolume } from "../Globals";
+import { Avognum, cellVolume, countToMiliMol } from "../Globals";
 
 export function initReplication(sim: CME) {
   const k_high = 7800 * 1000 / Avognum / cellVolume;
@@ -126,7 +126,7 @@ export function initReplication(sim: CME) {
     sim.addReaction(['ssDNAunboundSite2_' + (i + 1), 'ssDNABoundSite2_' + i], ['ssDNAunboundSite2_' + i, 'M_DnaA_c'], k_off);
   }
 
-  const repInitProds = ['ssDNABoundSite2_30', 'ssDNA_Unbinding2_30', 'Initiator_C', 'Initiator_CC'];
+  let repInitProds = ['ssDNABoundSite2_30', 'ssDNA_Unbinding2_30', 'Initiator_C', 'Initiator_CC'];
 
   sim.addReaction(['ssDNAunboundSite2_30', 'M_DnaA_c'], repInitProds, k_on_2);
 
@@ -187,6 +187,8 @@ export function initReplication(sim: CME) {
     sim.addReaction(['ssDNAunboundSite3_' + (i + 1), 'ssDNABoundSite3_' + i], ['ssDNAunboundSite3_' + i, 'M_DnaA_c'], k_off);
   }
 
+  repInitProds = ['ssDNABoundSite3_30', 'ssDNA_Unbinding3_30', 'Initiator_C', 'Initiator_CC'];
+
   sim.addReaction(['ssDNAunboundSite3_30', 'M_DnaA_c'], repInitProds, k_on_2);
 
   // Add the unbinding reactions for each of the 30 possible unbinding events in filament formation.
@@ -201,6 +203,12 @@ export function initReplication(sim: CME) {
   }
 
   sim.addReaction(['ssDNA_Unbinding2_1', 'ssDNABoundSite2_1'], ['M_DnaA_c'], helicase_removal_rate);
+
+  for (let i = 2; i < 31; i++) {
+    sim.addReaction(['ssDNA_Unbinding3_' + i, 'ssDNABoundSite3_' + i], ['ssDNA_Unbinding3_' + (i - 1), 'M_DnaA_c'], helicase_removal_rate);
+  }
+
+  sim.addReaction(['ssDNA_Unbinding3_1', 'ssDNABoundSite3_1'], ['M_DnaA_c'], helicase_removal_rate);
 }
 
 export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<string>) {
@@ -211,7 +219,7 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
   const dttp = 0.011 * 2; // mM
   const dctp = 0.006 * 2; // mM
   const dgtp = 0.0035 * 2; // mM
-  const DNApol3 = 35 * Avognum / cellVolume; // mM
+  const DNApol3 = 35 * countToMiliMol; // mM
 
   const chromosome_C = ['chromosome_C'];
   sim.defineSpecies(chromosome_C);
@@ -238,7 +246,7 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
   let C_bp = 0;
   let CC_bp = 0;
 
-  let position = 0;
+  let position = 1;
 
   const CC_genes = [];
 
@@ -248,35 +256,22 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
     const end = dna.features[gene].end;
 
     if (start < dna.sequence.length / 2) {
-      const geneSeq = dna.sequence.slice(position, end); // Seq(str(dna.seq[position:end]), generic_dna);
-      //console.log(locusTag);
+      const geneSeq = dna.sequence.slice(position, end).toUpperCase();
 
-      if (start === 0) {
-        //console.log(locusTag);
-
+      if (start === 1) {
         const baseCount = new Map<string, number>();
         for (const base of geneSeq) {
           baseCount.set(base, (baseCount.get(base) || 0) + 1);
         }
 
-        const n_tot = Array.from(baseCount.values()).reduce((a, b) => a + b);
+        const n_tot = [...baseCount.values()].reduce((a, b) => a + b, 0);
 
-        C_bp = C_bp + n_tot;
+        C_bp += n_tot;
 
         const NMono_A = baseCount.get("A") || 0;
-
         const NMono_C = baseCount.get("C") || 0;
-
         const NMono_G = baseCount.get("G") || 0;
-
         const NMono_T = baseCount.get("T") || 0;
-
-        const NMonoDict = [NMono_A, NMono_C, NMono_G, NMono_T];
-        //console.log(NMonoDict);
-
-        //             CMono1 = baseMap[ rnasequence[0] ]
-
-        //             CMono2 = baseMap[ rnasequence[1] ]
 
         const NMonoSum = NMono_A * KDrep / datp + NMono_C * KDrep / dctp + NMono_T * KDrep / dttp + NMono_G * KDrep / dgtp;
 
@@ -332,18 +327,14 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
           baseCount.set(base, (baseCount.get(base) || 0) + 1);
         }
 
-        const n_tot = Array.from(baseCount.values()).reduce((a, b) => a + b);
+        const n_tot = [...baseCount.values()].reduce((a, b) => a + b, 0);
 
-        C_bp = C_bp + n_tot;
+        C_bp += n_tot;
 
         const NMono_A = baseCount.get("A") || 0;
-
         const NMono_C = baseCount.get("C") || 0;
-
         const NMono_G = baseCount.get("G") || 0;
-
         const NMono_T = baseCount.get("T") || 0;
-        const NMonoDict = [NMono_A, NMono_C, NMono_G, NMono_T];
 
         const NMonoSum = NMono_A * KDrep / datp + NMono_C * KDrep / dctp + NMono_T * KDrep / dttp + NMono_G * KDrep / dgtp;
 
@@ -388,7 +379,7 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
           RepProd.push('dGTP_DNArep');
         }
 
-        sim.addReaction([intergenic_region], RepProd, k_gene_dup);
+        sim.addReaction(intergenic_list.slice(-1), RepProd, k_gene_dup);
 
         intergenic_list.push(intergenic_region);
 
@@ -400,19 +391,12 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
   position = 543086;
 
   for (const gene of gene_list) {
-    const locusTag = dna.features[gene].notes['locus_tag'][0];
-    const start = dna.features[gene].start;
-    const end = dna.features[gene].end;
-
-    if (start > dna.sequence.length / 2) {
-
+    if (dna.features[gene].start > dna.sequence.length / 2) {
       CC_genes.push(gene);
     }
   }
 
-  // console.log(CC_genes);
   CC_genes.reverse();
-  // console.log(CC_genes);
 
   for (const gene of CC_genes) {
 
@@ -420,12 +404,9 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
     const start = dna.features[gene].start;
     const end = dna.features[gene].end;
 
-    const geneSeq = dna.sequence.slice(start, position); // Seq(str(dna.seq[start:position]), generic_dna);
-    //console.log(locusTag);
+    const geneSeq = dna.sequence.slice(start, position).toUpperCase();
 
     if (end === 543086) {
-      //console.log(locusTag);
-
       const baseCount = new Map<string, number>();
       for (const base of geneSeq) {
         baseCount.set(base, (baseCount.get(base) || 0) + 1);
@@ -433,17 +414,12 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
 
       const n_tot = Array.from(baseCount.values()).reduce((a, b) => a + b);
 
-      CC_bp = CC_bp + n_tot;
+      CC_bp += n_tot;
 
       const NMono_A = baseCount.get("A") || 0;
-
       const NMono_C = baseCount.get("C") || 0;
-
       const NMono_G = baseCount.get("G") || 0;
-
       const NMono_T = baseCount.get("T") || 0;
-
-      const NMonoDict = [NMono_A, NMono_C, NMono_G, NMono_T];
 
       const NMonoSum = NMono_A * KDrep / datp + NMono_C * KDrep / dctp + NMono_T * KDrep / dttp + NMono_G * KDrep / dgtp;
 
@@ -495,18 +471,14 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
         baseCount.set(base, (baseCount.get(base) || 0) + 1);
       }
 
-      const n_tot = Array.from(baseCount.values()).reduce((a, b) => a + b);
+      const n_tot = Array.from(baseCount.values()).reduce((a, b) => a + b, 0);
 
-      CC_bp = CC_bp + n_tot;
+      CC_bp += n_tot;
 
       const NMono_A = baseCount.get("A") || 0;
       const NMono_C = baseCount.get("C") || 0;
-
       const NMono_G = baseCount.get("G") || 0;
-
       const NMono_T = baseCount.get("T") || 0;
-
-      const NMonoDict = [NMono_A, NMono_C, NMono_G, NMono_T];
 
       const NMonoSum = NMono_A * KDrep / datp + NMono_C * KDrep / dctp + NMono_T * KDrep / dttp + NMono_G * KDrep / dgtp;
 
@@ -522,8 +494,7 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
         sim.addParticles(geneID, 1);
       }
 
-      const intergenic = [intergenic_region];
-      sim.defineSpecies(intergenic);
+      sim.defineSpecies([intergenic_region]);
 
       const gene_rep_end_products = ['High_Affinity_Site_oriC2', 'High_Affinity_Site_oriC3',
         'chromosome_C', 'chromosome_CC', 'chromosome_C', 'chromosome_CC',
@@ -558,7 +529,7 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
       }
 
       sim.addParticles(intergenic_region, 0);
-      sim.addReaction([intergenic_region], gene_rep_end_products, k_gene_dup);
+      sim.addReaction(intergenic_list.slice(-1), gene_rep_end_products, k_gene_dup);
 
       intergenic_list.push(intergenic_region);
 
@@ -574,14 +545,9 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
       CC_bp = CC_bp + n_tot;
 
       const NMono_A = baseCount.get("A") || 0;
-
       const NMono_C = baseCount.get("C") || 0;
-
       const NMono_G = baseCount.get("G") || 0;
-
       const NMono_T = baseCount.get("T") || 0;
-
-      const NMonoDict = [NMono_A, NMono_C, NMono_G, NMono_T];
 
       const NMonoSum = NMono_A * KDrep / datp + NMono_C * KDrep / dctp + NMono_T * KDrep / dttp + NMono_G * KDrep / dgtp;
 
@@ -626,7 +592,7 @@ export function addReplication(sim: CME, dna: ParsedGenbank, ModelSpecies: Set<s
         RepProd.push('dGTP_DNArep');
       }
 
-      sim.addReaction([intergenic_region], RepProd, k_gene_dup);
+      sim.addReaction(intergenic_list.slice(-1), RepProd, k_gene_dup);
 
       intergenic_list.push(intergenic_region);
 

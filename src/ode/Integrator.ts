@@ -41,7 +41,7 @@ function generateFunction(model: ODE, reactionsByKey: Map<string, ODEReaction[]>
 
   code += '}';
 
-  return eval(code);
+  return window.eval(code);
 }
 
 export function integrate(

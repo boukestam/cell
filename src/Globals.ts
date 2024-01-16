@@ -77,7 +77,7 @@ export const baseMap = new Map<string, number>([
 ]);
 
 // Global parameters for translation
-export const riboKcat = 10; // 1/s
+export const riboKcat = 12; // 1/s
 export const riboK0 = 4 * 25e-6; // 
 export const riboKd = 0.0001; // 
 

@@ -16,6 +16,28 @@ class Reaction {
       return acc * (species.get(reactant) || 0);
     }, this.rate);
   }
+
+  toString() {
+    const reactantCounts: Map<string, number> = new Map();
+    const productCounts: Map<string, number> = new Map();
+
+    for (const reactant of this.reactants) {
+      const count = reactantCounts.get(reactant) || 0;
+      reactantCounts.set(reactant, count + 1);
+    }
+
+    for (const product of this.products) {
+      const count = productCounts.get(product) || 0;
+      productCounts.set(product, count + 1);
+    }
+
+    // 1A + 2B + 3C -> 2D + 1E (K = 0.1)
+
+    return [...reactantCounts.entries()].map(([reactant, count]) => `${count}${reactant}`).join(" + ") +
+      " -> " +
+      [...productCounts.entries()].map(([product, count]) => `${count}${product}`).join(" + ") +
+      ` (K = ${this.rate.toFixed(6)})`;
+  }
 }
 
 export class CME {
@@ -73,16 +95,11 @@ export class CME {
       throw new Error(`Species ${species} does not exist`);
     }
 
-    this.species.set(species, count + amount);
+    this.species.set(species, count + Math.floor(amount));
   }
 
   async solve(totalTime: number, hookInterval: number, hook: (time: number) => Promise<void>) {
     let time = 0;
-
-    // Convert all counts to integers
-    for (const [species, count] of this.species.entries()) {
-      this.species.set(species, Math.round(count));
-    }
 
     // Calculate propensities
     for (const reaction of this.reactions) {

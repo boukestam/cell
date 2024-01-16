@@ -34,7 +34,7 @@ const commonOptions: any = {
   animation: false,
 };
 
-function multilineChart(id: string, data: { [key: string]: { view: number[] } }) {
+function multilineChart(id: string, data: { [key: string]: { view: number[] } }, yScale = "linear") {
   return new Chart(
     document.getElementById(id) as HTMLCanvasElement,
     {
@@ -51,7 +51,7 @@ function multilineChart(id: string, data: { [key: string]: { view: number[] } })
         ...commonOptions,
         scales: {
           y: {
-            type: "linear",
+            type: yScale,
             beginAtZero: true,
             title: {
               display: true,
@@ -73,7 +73,7 @@ function multilineChart(id: string, data: { [key: string]: { view: number[] } })
 
 export function initUI() {
   metaboliteChart = multilineChart('metabolites', metaboliteData);
-  atpChart = multilineChart('atp', atpData);
+  atpChart = multilineChart('atp', atpData, "logarithmic");
 
   volumeChart = new Chart(
     document.getElementById('volume') as HTMLCanvasElement,
@@ -171,8 +171,25 @@ export function updateUI(t: number, data: Map<string, number>) {
     overwrite(metaboliteData[id].view, decimate(metaboliteData[id].data, DECIMATION));
   }
 
+  let minATPValue = Number.MAX_VALUE;
+
   for (const id of Object.keys(atpData)) {
     overwrite(atpData[id].view, decimate(atpData[id].data, DECIMATION));
+
+    for (const value of atpData[id].view) {
+      if (value > 0 && value < minATPValue) {
+        minATPValue = value;
+      }
+    }
+  }
+
+  // Set all ATP values to the minimum value if they are zero
+  for (const id of Object.keys(atpData)) {
+    for (let i = 0; i < atpData[id].view.length; i++) {
+      if (atpData[id].view[i] === 0) {
+        atpData[id].view[i] = minATPValue;
+      }
+    }
   }
 
   volumeChart.update("none");

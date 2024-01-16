@@ -139,10 +139,10 @@ export function getProteinCount(newMetID: string, jcvi2ID: string): { proteinCou
 
     const proteinCount = Math.max(
       defaultPtnCount,
-      Math.round(data.proteomPD.findRow(0, aoeID)[21])
+      Math.round(data.proteomPD.findRow("Protein", aoeID)[21])
     );
 
-    const proteinName = data.proteomPD.findRow(0, aoeID)[1].replace(" [synthetic bacterium JCVI-Syn3.0]", "");
+    const proteinName = data.proteomPD.findRow("Protein", aoeID)[1].replace(" [synthetic bacterium JCVI-Syn3.0]", "");
 
     return { proteinCount, proteinName };
   } catch {
@@ -154,14 +154,33 @@ export function getProteinCount(newMetID: string, jcvi2ID: string): { proteinCou
 export function getSequences(jcvi3AID: string) {
   // returns genomic and protein sequences
   try {
-    const rnasequence = genomePtnLocDict.get(jcvi3AID).extract(data.genome3A.sequence).transcribe();
+    const gene = genomePtnLocDict.get(jcvi3AID).extract(data.genome3A.sequence);
+
+    if (gene.length % 3 !== 0) {
+      console.error(jcvi3AID, gene);
+      throw new Error("Sequence length must be a multiple of 3");
+    }
+
+    const rnasequence = gene.transcribe();
 
     // Using translation table 11 from NCBI: "Bacterial, Archaeal and Plant Plastid Code"
     // https://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi#SG4
-    const aasequence = genomePtnLocDict.get(jcvi3AID).extract(data.genome3A.sequence).transcribe().translate(4);
+    const aasequence = rnasequence.translate(4);
+
+    const feature = data.genome3A.features.find(feature => feature.type === "CDS" && feature.name === jcvi3AID);
+    if (feature && feature.notes["translation"][0] !== aasequence.sequence.replace("*", "")) {
+      console.error(jcvi3AID, gene, rnasequence, aasequence, feature, feature.notes["translation"][0]);
+      throw new Error("Translation mismatch");
+    }
+
+    if (aasequence.sequence.slice(0, -1).includes("*")) {
+      console.error(jcvi3AID, gene, rnasequence, aasequence, feature.notes["translation"][0]);
+      throw new Error("Internal stop codon");
+    }
 
     return { rnasequence, aasequence };
-  } catch {
+  } catch (e) {
+    console.error(e);
     return { rnasequence: undefined, aasequence: undefined };
   }
 }

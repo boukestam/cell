@@ -28,7 +28,15 @@ export class GeneLocation {
   }
 
   extract(genome: string): Gene {
-    return new Gene(genome.substring(this.start, this.end));
+    const gene = new Gene(genome.substring(this.start - 1, this.end));
+
+    if (this.strand === 1) {
+      return gene;
+    } else if (this.strand === -1) {
+      return gene.reverseComplement();
+    } else {
+      throw new Error("Invalid strand");
+    }
   }
 }
 
@@ -75,28 +83,45 @@ export class Gene {
     GTG V Val i    GCG A Ala      GAG E Glu      GGG G Gly  
     */
 
+    /*
+    Alternative Initiation Codons:
+
+    Trypanosoma: UUA, UUG, CUG
+    Leishmania: AUU, AUA
+    Tertrahymena: AUU, AUA, AUG
+    Paramecium: AUU, AUA, AUG, AUC, GUG, GUA(?)
+    */
+
     const codonTable = {
       4: {
-        "TTT": "F", "TTC": "F", "TTA": "L", "TTG": "L",
-        "CTT": "L", "CTC": "L", "CTA": "L", "CTG": "L",
-        "ATT": "I", "ATC": "I", "ATA": "I", "ATG": "M",
-        "GTT": "V", "GTC": "V", "GTA": "V", "GTG": "V",
-        "TCT": "S", "TCC": "S", "TCA": "S", "TCG": "S",
-        "CCT": "P", "CCC": "P", "CCA": "P", "CCG": "P",
-        "ACT": "T", "ACC": "T", "ACA": "T", "ACG": "T",
-        "GCT": "A", "GCC": "A", "GCA": "A", "GCG": "A",
-        "TAT": "Y", "TAC": "Y", "TAA": "*", "TAG": "*",
-        "CAT": "H", "CAC": "H", "CAA": "Q", "CAG": "Q",
-        "AAT": "N", "AAC": "N", "AAA": "K", "AAG": "K",
-        "GAT": "D", "GAC": "D", "GAA": "E", "GAG": "E",
-        "TGT": "C", "TGC": "C", "TGA": "W", "TGG": "W",
-        "CGT": "R", "CGC": "R", "CGA": "R", "CGG": "R",
-        "AGT": "S", "AGC": "S", "AGA": "R", "AGG": "R",
-        "GGT": "G", "GGC": "G", "GGA": "G", "GGG": "G"
+        "UUU": "F", "UUC": "F", "UUA": "L", "UUG": "L",
+        "CUU": "L", "CUC": "L", "CUA": "L", "CUG": "L",
+        "AUU": "I", "AUC": "I", "AUA": "I", "AUG": "M",
+        "GUU": "V", "GUC": "V", "GUA": "V", "GUG": "V",
+        "UCU": "S", "UCC": "S", "UCA": "S", "UCG": "S",
+        "CCU": "P", "CCC": "P", "CCA": "P", "CCG": "P",
+        "ACU": "T", "ACC": "T", "ACA": "T", "ACG": "T",
+        "GCU": "A", "GCC": "A", "GCA": "A", "GCG": "A",
+        "UAU": "Y", "UAC": "Y", "UAA": "*", "UAG": "*",
+        "CAU": "H", "CAC": "H", "CAA": "Q", "CAG": "Q",
+        "AAU": "N", "AAC": "N", "AAA": "K", "AAG": "K",
+        "GAU": "D", "GAC": "D", "GAA": "E", "GAG": "E",
+        "UGU": "C", "UGC": "C", "UGA": "W", "UGG": "W",
+        "CGU": "R", "CGC": "R", "CGA": "R", "CGG": "R",
+        "AGU": "S", "AGC": "S", "AGA": "R", "AGG": "R",
+        "GGU": "G", "GGC": "G", "GGA": "G", "GGG": "G"
       }
     };
 
+
     const codons = this.sequence.match(/.{1,3}/g);
+
+    // Check for alternative initiation codons
+    const initiationCodons = new Set(["UUA", "UUG", "CUG", "AUU", "AUA", "AUG", "AUC", "GUG", "GUA"]);
+    if (initiationCodons.has(codons[0])) {
+      codons[0] = "AUG";
+    }
+
     const protein = codons.map(codon => codonTable[table][codon]).join("");
 
     return new Gene(protein);

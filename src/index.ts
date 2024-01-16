@@ -13,9 +13,6 @@ import { writeODEtoCME } from "./ode/ODEtoCME";
 import { initUI, updateUI } from "./ui";
 import { mMtoPart } from "./ode/Reactions";
 
-// Create our simulation object
-const sim = new CME();
-
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -29,12 +26,20 @@ async function run() {
 
   initDicts();
 
+  // Create our simulation object
+  const sim = new CME();
+
   initIC(sim);
 
   populate(sim);
 
   initReplication(sim);
   addReplication(sim, data.genome3A, ModelSpecies);
+
+  //console.log([...sim.species.entries()].map(([key, value]) => key + ": " + value).join("\n"));
+  console.log(sim.reactions.map(r => r.toString()).join("\n"));
+
+  //throw new Error("Stop here");
 
   const metabolicData = defineMetabolicReactions();
   console.log(metabolicData);
@@ -46,7 +51,7 @@ async function run() {
 
   let i = 0;
 
-  await sim.solve(240 * 60, 1, async (time) => {
+  await sim.solve(120 * 60, 1, async (time) => {
     const uiData = new Map(sim.species);
 
     const model = new ODE();

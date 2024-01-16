@@ -6,7 +6,7 @@ import { Gene } from "../data/Gene";
 import { ModelSpecies, genomePtnLocDict, genomeRnaLocDict } from "../Globals";
 import { poisson } from "../Poisson";
 import { aaCostMap, aaTRNAMap, ctRNAcostMap } from "./RNAMaps";
-import { transcriptRate, degradationRate, translateRate, riboTranscriptRate, trnaTranscriptRate } from "./Rates";
+import { transcriptRate, degradationRate, translateRate, riboTranscriptRate, trnaTranscriptRate, translocRate, rrnaTranscriptRate } from "./Rates";
 
 export const genesInModel = new Set<string>();
 
@@ -24,8 +24,12 @@ function getJCVI2ID(mmcode: string) {
 function addRNACost(
   sim: CME,
   geneMetID: string, rnaMetID: string, ptnMetID: string, jcvi2ID: string,
-  rnasequence: Gene, aasequence: Gene
+  rnasequence: Gene, aasequence: Gene, cyto: boolean = false, ribo: boolean = false
 ) {
+  if (cyto) {
+    sim.defineSpecies([ptnMetID + "_cyto"]);
+  }
+
   const TrscProd = [geneMetID, rnaMetID];
   const mRNAdegProd = [];
 
@@ -66,11 +70,18 @@ function addRNACost(
     mRNAdegProd.push('CMP_mRNAdeg');
   }
 
-  const TranslatProd = [rnaMetID, ptnMetID];
+  const TranslatProd = [rnaMetID, cyto ? ptnMetID + "_cyto" : ptnMetID];
+  const TranslocProd = [ptnMetID];
 
   for (let i = 0; i < aasequence.length; i++) {
     TranslatProd.push('ATP_translat');
     TranslatProd.push('ATP_translat');
+  }
+
+  if (cyto) {
+    for (let i = 0; i < Math.floor(aasequence.length / 10); i++) {
+      TranslocProd.push('ATP_transloc');
+    }
   }
 
   const aaCount = new Map<string, number>();
@@ -123,9 +134,13 @@ function addRNACost(
     }
   }
 
-  sim.addReaction([geneMetID], TrscProd, transcriptRate(rnaMetID, ptnMetID, rnasequence.sequence, jcvi2ID));
+  sim.addReaction([geneMetID], TrscProd, (ribo ? riboTranscriptRate : transcriptRate)(rnasequence.sequence, ptnMetID, jcvi2ID));
   sim.addReaction([rnaMetID], mRNAdegProd, degradationRate(rnaMetID, rnasequence.sequence));
-  sim.addReaction([rnaMetID], TranslatProd, translateRate(rnaMetID, ptnMetID, rnasequence.sequence, aasequence.sequence, sim.species));
+  sim.addReaction([rnaMetID], TranslatProd, translateRate(rnasequence.sequence, aasequence.sequence));
+
+  if (cyto) {
+    sim.addReaction([ptnMetID + "_cyto"], TranslocProd, translocRate(aasequence.sequence));
+  }
 }
 
 function addMetabolite(sim: CME, newMetID: string, proteinCount: number, transcribe: boolean, jcvi3AID: string) {
@@ -233,7 +248,7 @@ function addMembraneProtein(
   if (!metaboliteResult) return;
 
   const { geneMetID, rnaMetID, rnasequence, aasequence } = metaboliteResult;
-  addRNACost(sim, geneMetID, rnaMetID, newMetID, jcvi2ID, rnasequence, aasequence);
+  addRNACost(sim, geneMetID, rnaMetID, newMetID, jcvi2ID, rnasequence, aasequence, true);
 }
 
 const RiboPtnNames = ['Ribosomal Protein'];
@@ -265,16 +280,16 @@ function addRiboProtein(
 
   RiboPtnNames.push(newMetID);
 
-  const trsc_rate = riboTranscriptRate(rnaMetID, newMetID, rnasequence.sequence, jcvi2ID);
+  const trsc_rate = riboTranscriptRate(rnasequence.sequence);
   RiboPtnTrscRates.push(trsc_rate);
 
-  const translat_rate = translateRate(rnaMetID, newMetID, rnasequence.sequence, aasequence.sequence, sim.species);
+  const translat_rate = translateRate(rnasequence.sequence, aasequence.sequence);
   RiboPtnTranslatRates.push(translat_rate);
 
   const rna_length = rnasequence.length;
   RiboPtnLens.push(rna_length)
 
-  addRNACost(sim, geneMetID, rnaMetID, newMetID, jcvi2ID, rnasequence, aasequence);
+  addRNACost(sim, geneMetID, rnaMetID, newMetID, jcvi2ID, rnasequence, aasequence, false, true);
 }
 
 const tRNAadded = new Set<string>();
@@ -416,7 +431,7 @@ function addTRNA(sim: CME, unchargedMetID: string, chargedMetID: string, mmcode:
     TrscProd.push('CTP_tRNA');
   }
 
-  sim.addReaction([geneMetID], TrscProd, trnaTranscriptRate(unchargedMetID, rnasequence.sequence));
+  sim.addReaction([geneMetID], TrscProd, trnaTranscriptRate(rnasequence.sequence));
 }
 
 function addRRNA(sim: CME) {
@@ -513,7 +528,7 @@ function addRRNA(sim: CME) {
     TrscProd.push('CTP_rRNA');
   }
 
-  sim.addReaction(['JCVISYN3A_0067_gene'], TrscProd, transcriptRate('M_rRNA_5S_c', 'M_rRNA_16S_c', rnasequence.sequence, 'JCVIunk_0067'));
+  sim.addReaction(['JCVISYN3A_0067_gene'], TrscProd, rrnaTranscriptRate(rnasequence.sequence));
 
   for (const row of rrnaMetDF_2.rows) {
     const newMetID = row[0];
@@ -565,7 +580,7 @@ function addRRNA(sim: CME) {
     TrscProd2.push('CTP_rRNA');
   }
 
-  sim.addReaction(['JCVISYN3A_0532_gene'], TrscProd2, transcriptRate('M_rRNA_5S_c', 'M_rRNA_16S_c', rnasequence2.sequence, 'JCVIunk_0532'));
+  sim.addReaction(['JCVISYN3A_0532_gene'], TrscProd2, rrnaTranscriptRate(rnasequence2.sequence));
 }
 
 export function populate(sim: CME) {
@@ -594,11 +609,11 @@ export function populate(sim: CME) {
   sim.defineSpecies(AA_paid);
 
   for (const row of data.PtnMetDF.getRows()) {
-    addNamedProtein(sim, row["species"], row["gene"], row["transcribe"] === '1', row["proteomics_fraction"]);
+    addNamedProtein(sim, row["species"], row["gene"], row["transcribe"] === 1, row["proteomics_fraction"]);
   }
 
   for (const row of data.memPtnMetDF.getRows()) {
-    addMembraneProtein(sim, row["species"], row["gene"], row["transcribe"] === '1', row["proteomics_fraction"]);
+    addMembraneProtein(sim, row["species"], row["gene"], row["transcribe"] === 1, row["proteomics_fraction"]);
   }
 
   for (const row of data.riboPtnMetDF.getRows()) {
