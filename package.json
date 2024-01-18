@@ -17,6 +17,6 @@
   },
   "scripts": {
     "build": "esbuild src/index.ts --bundle --minify --sourcemap --target=es2015 --outfile=dist/index.js",
-    "start": "esbuild src/index.ts --bundle --sourcemap --target=es2015 --outfile=dist/index.js --serve --servedir=/"
+    "start": "esbuild src/index.ts --bundle --sourcemap --target=es2015 --outfile=dist/index.js --serve --servedir=."
   }
 }
