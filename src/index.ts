@@ -22,7 +22,7 @@ async function run() {
 
   const data = await loadData();
 
-  console.log("Loaded", data);
+  console.log("Loaded data");
 
   initDicts();
 
@@ -37,16 +37,13 @@ async function run() {
   addReplication(sim, data.genome3A, ModelSpecies);
 
   //console.log([...sim.species.entries()].map(([key, value]) => key + ": " + value).join("\n"));
-  console.log(sim.reactions.map(r => r.toString()).join("\n"));
-
-  //throw new Error("Stop here");
+  //console.log(sim.reactions.map(r => r.toString()).join("\n"));
 
   const metabolicData = defineMetabolicReactions();
-  console.log(metabolicData);
 
   // Run simulation
 
-  console.log("Running simulation", sim);
+  console.log("Running simulation");
   const startTime = Date.now();
 
   let i = 0;

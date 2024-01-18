@@ -21,7 +21,6 @@ const metaboliteData = {
 
 let atpChart: Chart;
 const atpData = {
-  'ODE_M_atp_c': { data: [], view: [] },
   'ATP_trsc': { data: [], view: [] },
   'ATP_translat': { data: [], view: [] },
   'ATP_mRNAdeg': { data: [], view: [] },
@@ -162,7 +161,7 @@ export function updateUI(t: number, data: Map<string, number>) {
     atpData[id].data.push(partTomM(data.get(id), data));
   }
 
-  if (t - lastUpdateTime < 1) return false;
+  if (t - lastUpdateTime < 0.4) return false;
 
   overwrite(times.view, decimate(times.data, DECIMATION));
   overwrite(volumeData.view, decimate(volumeData.data, DECIMATION));
@@ -171,25 +170,8 @@ export function updateUI(t: number, data: Map<string, number>) {
     overwrite(metaboliteData[id].view, decimate(metaboliteData[id].data, DECIMATION));
   }
 
-  let minATPValue = Number.MAX_VALUE;
-
   for (const id of Object.keys(atpData)) {
     overwrite(atpData[id].view, decimate(atpData[id].data, DECIMATION));
-
-    for (const value of atpData[id].view) {
-      if (value > 0 && value < minATPValue) {
-        minATPValue = value;
-      }
-    }
-  }
-
-  // Set all ATP values to the minimum value if they are zero
-  for (const id of Object.keys(atpData)) {
-    for (let i = 0; i < atpData[id].view.length; i++) {
-      if (atpData[id].view[i] === 0) {
-        atpData[id].view[i] = minATPValue;
-      }
-    }
   }
 
   volumeChart.update("none");

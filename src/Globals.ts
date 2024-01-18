@@ -99,7 +99,7 @@ export function initDicts() {
         AOEtoJ2.set(AOE_locus, JCVSYN2_tag);
         J2toAOE.set(JCVSYN2_tag, AOE_locus);
       } else {
-        console.log("Locus ", JCVSYN2_tag, " has no AOE id!");
+        // console.log("Locus ", JCVSYN2_tag, " has no AOE id!");
       }
     }
     if (f.type === "rRNA") {
@@ -118,7 +118,7 @@ export function initDicts() {
       if ('protein_id' in f.notes) {
         genomePtnLocDict.set(JCVSYN3A_tag, new GeneLocation(f));
       } else {
-        console.log("Locus ", JCVSYN3A_tag, " is pseudo.");
+        // console.log("Locus ", JCVSYN3A_tag, " is pseudo.");
       }
     }
     if (f.type === "rRNA") {

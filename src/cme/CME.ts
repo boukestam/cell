@@ -1,41 +1,47 @@
 class Reaction {
-  reactants: string[];
-  products: string[];
+  reactants: Map<string, number>;
+  products: Map<string, number>;
   rate: number;
   propensity: number;
 
   constructor(reactants: string[], products: string[], rate: number) {
-    this.reactants = reactants;
-    this.products = products;
+    const reactantCounts: Map<string, number> = new Map();
+    const productCounts: Map<string, number> = new Map();
+
+    for (const reactant of reactants) {
+      const count = reactantCounts.get(reactant) || 0;
+      reactantCounts.set(reactant, count + 1);
+    }
+
+    for (const product of products) {
+      const count = productCounts.get(product) || 0;
+      productCounts.set(product, count + 1);
+    }
+
+    this.reactants = reactantCounts;
+    this.products = productCounts;
     this.rate = rate;
     this.propensity = 0;
   }
 
   updatePropensity(species: Map<string, number>) {
-    this.propensity = this.reactants.reduce((acc, reactant) => {
-      return acc * (species.get(reactant) || 0);
-    }, this.rate);
+    let propensity = this.rate;
+
+    for (const entry of this.reactants) {
+      propensity *= Math.pow(species.get(entry[0]), entry[1]);
+    }
+
+    this.propensity = propensity;
+
+    return propensity;
   }
 
   toString() {
-    const reactantCounts: Map<string, number> = new Map();
-    const productCounts: Map<string, number> = new Map();
-
-    for (const reactant of this.reactants) {
-      const count = reactantCounts.get(reactant) || 0;
-      reactantCounts.set(reactant, count + 1);
-    }
-
-    for (const product of this.products) {
-      const count = productCounts.get(product) || 0;
-      productCounts.set(product, count + 1);
-    }
-
     // 1A + 2B + 3C -> 2D + 1E (K = 0.1)
 
-    return [...reactantCounts.entries()].map(([reactant, count]) => `${count}${reactant}`).join(" + ") +
+    return [...this.reactants.entries()].map(([reactant, count]) => `${count}${reactant}`).join(" + ") +
       " -> " +
-      [...productCounts.entries()].map(([product, count]) => `${count}${product}`).join(" + ") +
+      [...this.products.entries()].map(([product, count]) => `${count}${product}`).join(" + ") +
       ` (K = ${this.rate.toFixed(6)})`;
   }
 }
@@ -82,9 +88,12 @@ export class CME {
     const reaction = new Reaction(reactants, products, rate);
     this.reactions.push(reaction);
 
-    for (const species of reactants) {
-      const reactions = this.speciesReactions.get(species) || [];
-      this.speciesReactions.set(species, [...reactions, reaction]);
+    for (const species of reaction.reactants.keys()) {
+      if (this.speciesReactions.has(species)) {
+        this.speciesReactions.get(species).push(reaction);
+      } else {
+        this.speciesReactions.set(species, [reaction]);
+      }
     }
   }
 
@@ -111,8 +120,7 @@ export class CME {
     let lastHookTime = 0;
 
     while (time < totalTime) {
-      const result = this.solveStep(time);
-      time = result.time;
+      time = this.solveStep(time);
 
       if (time - lastHookTime >= hookInterval) {
         await hook(time);
@@ -141,18 +149,18 @@ export class CME {
     const { reactants, products } = this.reactions[reactionIndex - 1];
 
     for (const reactant of reactants) {
-      const count = this.species.get(reactant) || 0;
-      this.species.set(reactant, count - 1);
+      const count = this.species.get(reactant[0]) || 0;
+      this.species.set(reactant[0], count - reactant[1]);
     }
 
     for (const product of products) {
-      const count = this.species.get(product) || 0;
-      this.species.set(product, count + 1);
+      const count = this.species.get(product[0]) || 0;
+      this.species.set(product[0], count + product[1]);
     }
 
     // Update propensities
     for (const species of [...reactants, ...products]) {
-      for (const reaction of this.speciesReactions.get(species) || []) {
+      for (const reaction of this.speciesReactions.get(species[0]) || []) {
         const oldPropensity = reaction.propensity;
         reaction.updatePropensity(this.species);
 
@@ -161,7 +169,7 @@ export class CME {
       }
     }
 
-    return { time, reactants, products };
+    return time;
   }
 
   toString() {
@@ -171,13 +179,13 @@ export class CME {
     // Write the species and counts
     output += "# Species\n";
     for (const [species, count] of this.species.entries()) {
-      output += `species ${species}: ${count}\n`;
+      output += `${species}: ${count}\n`;
     }
 
     // Write the reactions
     output += "# Reactions\n";
     for (const reaction of this.reactions) {
-      output += `reaction ${reaction.reactants.join(" + ")} -> ${reaction.products.join(" + ")}: ${reaction.rate}\n`;
+      output += reaction.toString() + "\n";
     }
 
     return output;
