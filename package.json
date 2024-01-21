@@ -9,14 +9,19 @@
     "@types/papaparse": "^5.3.14",
     "@webgpu/types": "^0.1.40",
     "chart.js": "^4.4.1",
+    "copyfiles": "^2.4.1",
     "esbuild": "^0.19.10",
     "exceljs": "^4.4.0",
     "fast-xml-parser": "^4.3.2",
     "genbank-parser": "^1.2.4",
-    "papaparse": "^5.4.1"
+    "gh-pages": "^6.1.1",
+    "papaparse": "^5.4.1",
+    "replace-in-file": "^7.1.0"
   },
   "scripts": {
     "build": "esbuild src/index.ts --bundle --minify --sourcemap --target=es2015 --outfile=dist/index.js",
-    "start": "esbuild src/index.ts --bundle --sourcemap --target=es2015 --outfile=dist/index.js --serve --servedir=."
+    "start": "esbuild src/index.ts --bundle --sourcemap --target=es2015 --outfile=dist/index.js --serve --servedir=.",
+    "predeploy": "npm run build && copyfiles index.html lsoda.wasm emscripten.js model_data/* model_data/FBA/* dist && replace-in-file dist/index.js index.js dist/index.html",
+    "deploy": "npm run predeploy && gh-pages -d dist"
   }
 }
