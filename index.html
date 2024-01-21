@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="UTF-8">
+  <title>Cell Simulation</title>
+
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+    }
+  </style>
+</head>
+
+<body>
+  <div style="width: 600px;"><canvas id="volume"></canvas></div>
+  <div style="width: 600px;"><canvas id="metabolites"></canvas></div>
+  <div style="width: 600px;"><canvas id="atp"></canvas></div>
+
+  <script src="emscripten.js"></script>
+  <script src="dist/index.js"></script>
+</body>
+
+</html>
